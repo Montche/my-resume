@@ -22,4 +22,4 @@ jobs:
     - name: tag image
       run: docker tag my-image-name:${{github.run_number}} ${{secrets.REGISTRY_USERNAME}}/my-image-name:${{github.run_number}}
     - name : push image
-      run : docker push ${{secrets.REGISTRY_USERNAME}}  ${{secrets.REGISTRY_PASS}}
+      run : docker push ${{secrets.REGISTRY_USERNAME}}/my-image-name:${{github.run_number}}
