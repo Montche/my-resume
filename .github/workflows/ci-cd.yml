@@ -77,21 +77,57 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v6
         with:
-          script: |
-            // Use require() to import Node.js modules
-            const fs = require('fs');
-            
-            try {
-              // Read file synchronously (use async methods if preferred)
-              const fsReport = JSON.parse(fs.readFileSync('trivy-fs-results.json', 'utf8'));
-              const imageReport = JSON.parse(fs.readFileSync('trivy-image-results.json', 'utf8'));
-              
-              const formatVulns = (vulns) => vulns.map(v => `
-                **Package:** ${v.PkgName} (${v.InstalledVersion})  
-                **CVE:** ${v.VulnerabilityID} (${v.Severity})  
-                **Fix Version:** ${v.FixedVersion || 'None'}  
-                **Advisory:** ${v.PrimaryURL || 'N/A'}
-              `).join('\n');
+            script: |
+             // Use require() to import Node.js modules
+             const fs = require('fs');
+      
+             try {
+             // Read file synchronously (use async methods if preferred)
+             const fsReport = JSON.parse(fs.readFileSync('trivy-fs-results.json', 'utf8'));
+             const imageReport = JSON.parse(fs.readFileSync('trivy-image-results.json', 'utf8'));
+        
+             const formatVulns = (vulns) => vulns.map(v => `
+             **Package:** ${v.PkgName} (${v.InstalledVersion})  
+             **CVE:** ${v.VulnerabilityID} (${v.Severity})  
+             **Fix Version:** ${v.FixedVersion || 'None'}  
+             **Advisory:** ${v.PrimaryURL || 'N/A'}
+             `).join('\n');
+
+             // Add your logic to process the reports and post comments here
+             // For example:
+             const fsVulns = fsReport.Results?.flatMap(r => r.Vulnerabilities || []) || [];
+             const imageVulns = imageReport.Results?.flatMap(r => r.Vulnerabilities || []) || [];
+        
+             if (fsVulns.length > 0 || imageVulns.length > 0) {
+             const comment = `
+             ## Security Scan Results
+          
+             ### File System Vulnerabilities:
+             ${fsVulns.length > 0 ? formatVulns(fsVulns) : 'No vulnerabilities found'}
+          
+             ### Image Vulnerabilities:
+             ${imageVulns.length > 0 ? formatVulns(imageVulns) : 'No vulnerabilities found'}
+             `;
+          
+             // Post comment to PR
+             github.rest.issues.createComment({
+             owner: context.repo.owner,
+             repo: context.repo.repo,
+             issue_number: context.issue.number,
+             body: comment
+             });
+             }
+        
+             } catch (error) {
+             console.error('Error processing Trivy results:', error);
+             // Optionally, you can post a failure comment
+             github.rest.issues.createComment({
+             owner: context.repo.owner,
+             repo: context.repo.repo,
+             issue_number: context.issue.number,
+             body: '❌ Failed to process security scan results. Please check the workflow logs for details.'
+             });
+             }
 
   Deploy:
     runs-on: ubuntu-latest
